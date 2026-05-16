@@ -52,7 +52,7 @@ function updateHud() {
 
 function updatePanel() {
   actionsEl.innerHTML = "";
-  panel.querySelectorAll(".log,.status-grid,.battle-bars,.move-list").forEach(n => n.remove());
+  panel.querySelectorAll(".log,.status-grid,.battle-bars,.move-list,.training-feedback").forEach(n => n.remove());
   switch (game.scene) {
     case SCENES.TITLE: return panelTitle();
     case SCENES.ISLAND: return panelIsland();
@@ -159,8 +159,20 @@ function panelTraining() {
   if (!activeMonsterGuard()) return;
   const m = game.monster;
   setHint(`今週のトレーニングを選ぼう (1週進行)\n寿命まであと ${50 - m.age} 週 / 疲労 ${m.fatigue}/100`);
+  insertTrainingFeedback();
   for (const menu of MENUS) btn(menu.label, () => doTraining(menu.id));
   btn("島に戻る", goIsland, { ghost: true });
+}
+
+function insertTrainingFeedback() {
+  if (!game.lastTraining) return;
+  const wrap = document.createElement("div");
+  wrap.className = "training-feedback";
+  const learned = game.lastTraining.learned ? getMove(game.lastTraining.learned) : null;
+  wrap.innerHTML =
+    `<div>前回: ${escapeHtml(game.lastTraining.message)}</div>` +
+    (learned ? `<div class="learned-banner">🎉 新しい技「${escapeHtml(learned.name)}」を覚えた!</div>` : "");
+  actionsEl.parentElement.insertBefore(wrap, actionsEl);
 }
 
 function doTraining(menuId) {
@@ -254,9 +266,13 @@ function panelResult() {
     setScene(game, SCENES.ISLAND);
     return saveAndDraw();
   }
+  const learned = result.learned ? getMove(result.learned) : null;
   hintEl.innerHTML = result.win
     ? `<strong style="color:#66c089">勝利!</strong> 報酬 +${result.reward}G`
     : `<strong style="color:#ef6a6a">敗北...</strong>`;
+  if (learned) {
+    hintEl.innerHTML += `<div class="learned-banner">🎉 新しい技「${escapeHtml(learned.name)}」を覚えた!</div>`;
+  }
   const log = document.createElement("div");
   log.className = "log";
   log.innerHTML = (result.log || []).map(l => `<div class="line ${l.kind}">${escapeHtml(l.text)}</div>`).join("");

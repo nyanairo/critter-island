@@ -32,6 +32,7 @@ export function initialGame() {
     monster: null,
     hallOfFame: [],
     lastBattle: null,
+    lastTraining: null,
     activeBattle: null,
   };
 }
@@ -144,7 +145,7 @@ export function logBattleResult(game, result) {
   if (!m) return;
   if (result.win) m.wins += 1; else m.losses += 1;
   addLog(game, `vs ${result.opponentName}: ${result.win ? "勝利!" : "敗北..."}`, result.win ? "good" : "bad");
-  rollLearnMove(game, 0.15, "battle:" + game.week + ":" + (result.seed || 0));
+  result.learned = rollLearnMove(game, 0.15, "battle:" + game.week + ":" + (result.seed || 0));
 }
 
 export function applyTrainingResult(game, result) {
@@ -156,7 +157,8 @@ export function applyTrainingResult(game, result) {
   m.fatigue = Math.max(0, Math.min(100, m.fatigue + result.fatigueAdd));
   m.spMax = computeSpMax(m);
   addLog(game, result.message, "info");
-  rollLearnMove(game, 0.05, "training:" + game.week + ":" + result.menu);
+  const learned = rollLearnMove(game, 0.05, "training:" + game.week + ":" + result.menu);
+  game.lastTraining = { menu: result.menu, message: result.message, learned };
 }
 
 export function addFatigue(game, amount) {
