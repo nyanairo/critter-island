@@ -372,6 +372,11 @@ button:disabled {
 
 .move-meta { color: var(--accent); }
 
+.move-effect {
+  color: #ffd95a;
+  font-weight: 700;
+}
+
 .battle-move {
   min-width: 180px;
   text-align: left;

@@ -34,7 +34,7 @@ export const MOVES = {
   kamitsuki: {
     id: "kamitsuki",
     name: "かみつき",
-    element: "牙",
+    element: "闇",
     style: "物理",
     power: 32,
     sp: 3,
@@ -91,6 +91,66 @@ export const MOVES = {
     flavor: "静かな祈りで気魂を取り戻す。",
     effect: { kind: "sp_heal", amount: 6 },
   },
+  "hikari-no-ya": {
+    id: "hikari-no-ya",
+    name: "光の矢",
+    element: "光",
+    style: "特殊",
+    power: 32,
+    sp: 4,
+    flavor: "まっすぐな光の矢を放つ。",
+    effect: null,
+  },
+  shukufuku: {
+    id: "shukufuku",
+    name: "祝福",
+    element: "光",
+    style: "支援",
+    power: 0,
+    sp: 4,
+    flavor: "やわらかな光で気力を満たす。",
+    effect: { kind: "sp_heal", amount: 8 },
+  },
+  "shinsei-na-uta": {
+    id: "shinsei-na-uta",
+    name: "神聖な歌",
+    element: "光",
+    style: "支援",
+    power: 0,
+    sp: 5,
+    flavor: "神聖な旋律で集中力を高める。",
+    effect: { kind: "crit_up", turns: 2 },
+  },
+  kagenui: {
+    id: "kagenui",
+    name: "影縫い",
+    element: "闇",
+    style: "物理",
+    power: 28,
+    sp: 3,
+    flavor: "影を縫い止めて隙を作る。",
+    effect: { kind: "crit_bonus", amount: 0.18 },
+  },
+  "yami-no-kamitsuki": {
+    id: "yami-no-kamitsuki",
+    name: "闇のかみつき",
+    element: "闇",
+    style: "物理",
+    power: 34,
+    sp: 4,
+    flavor: "黒い気配をまとって噛みつく。",
+    effect: null,
+  },
+  juso: {
+    id: "juso",
+    name: "呪詛",
+    element: "闇",
+    style: "支援",
+    power: 0,
+    sp: 5,
+    flavor: "不吉な言葉で急所を見抜く。",
+    effect: { kind: "crit_up", turns: 2 },
+  },
   ganbaru: {
     id: "ganbaru",
     name: "がんばる",
@@ -124,7 +184,7 @@ export const MOVES = {
   "kaishin-gari": {
     id: "kaishin-gari",
     name: "会心狙い",
-    element: "牙",
+    element: "闇",
     style: "物理",
     power: 36,
     sp: 5,
@@ -158,6 +218,8 @@ const STARTERS = {
   leaf: ["tsutade-utsu", "hikari-no-tsubu", "mori-no-uta"],
   flame: ["kamitsuki", "hi-no-ko", "tosshin"],
   aqua: ["mizu-deppou", "uzumaki", "shizukanaru-inori"],
+  light: ["hikari-no-ya", "shukufuku", "shinsei-na-uta"],
+  dark: ["kagenui", "yami-no-kamitsuki", "juso"],
 };
 
 export const LEGACY_MOVE_IDS = {
@@ -170,10 +232,25 @@ export const LEGACY_MOVE_IDS = {
   "みずでっぽう": "mizu-deppou",
   "うずまき": "uzumaki",
   "静かなる祈り": "shizukanaru-inori",
+  "静かな祈り": "shizukanaru-inori",
 };
 
 export function getMove(id) {
   return MOVES[id] || MOVES[LEGACY_MOVE_IDS[id]] || null;
+}
+
+export function moveEffectText(move) {
+  if (!move) return "";
+  const parts = [];
+  if ((move.style === "物理" || move.style === "特殊") && move.power > 0) {
+    parts.push(`威力 ${move.power}`);
+  }
+  if (move.effect?.kind === "charge") parts.push(`次の攻撃 ×${move.effect.mult}`);
+  if (move.effect?.kind === "crit_up") parts.push(`${move.effect.turns}ターン 会心率↑`);
+  if (move.effect?.kind === "crit_bonus") parts.push(`会心率 +${Math.round(move.effect.amount * 100)}%`);
+  if (move.effect?.kind === "sp_heal") parts.push(`SP +${move.effect.amount} 回復`);
+  parts.push(`(SP -${move.sp})`);
+  return parts.join(" / ");
 }
 
 export function STARTER_IDS_FOR_SPECIES(speciesId) {

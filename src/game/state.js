@@ -79,10 +79,11 @@ export function normalizeGame(raw) {
     if (!g.monsters.some(existing => existing.id === m.id)) g.monsters.push(m);
     markDex(g, "summoned", m.species);
   }
+  g.monsters = dedupeMonstersBySpecies(g.monsters);
 
   g.activeMonsterId = g.monsters.some(m => m.id === raw.activeMonsterId)
     ? raw.activeMonsterId
-    : (g.monsters[0]?.id || null);
+    : (bestMonster(g.monsters)?.id || null);
   delete g.monster;
   delete g.hallOfFame;
   if (g.scene !== SCENES.BATTLE && g.activeBattle && g.activeBattle.done) g.activeBattle = null;
@@ -130,6 +131,11 @@ function makeMonsterId(monster) {
 export function getActiveMonster(game) {
   if (!game || !Array.isArray(game.monsters)) return null;
   return game.monsters.find(m => m.id === game.activeMonsterId) || null;
+}
+
+export function findMonsterBySpecies(game, speciesId) {
+  if (!game || !Array.isArray(game.monsters)) return null;
+  return game.monsters.find(m => m.species === speciesId) || null;
 }
 
 export function setScene(game, scene) {
@@ -265,6 +271,29 @@ function toMoveId(value) {
   if (!value) return null;
   if (MOVE_IDS.includes(value)) return value;
   return LEGACY_MOVE_IDS[value] || null;
+}
+
+function monsterStatTotal(monster) {
+  const s = monster?.stats || {};
+  return (s.hp || 0) + (s.pow || 0) + (s.spd || 0) + (s.smt || 0) + (s.spr || 0);
+}
+
+function bestMonster(monsters) {
+  return (monsters || []).reduce((best, monster) => {
+    if (!best) return monster;
+    return monsterStatTotal(monster) > monsterStatTotal(best) ? monster : best;
+  }, null);
+}
+
+function dedupeMonstersBySpecies(monsters) {
+  const bySpecies = new Map();
+  for (const monster of monsters) {
+    const existing = bySpecies.get(monster.species);
+    if (!existing || monsterStatTotal(monster) > monsterStatTotal(existing)) {
+      bySpecies.set(monster.species, monster);
+    }
+  }
+  return [...bySpecies.values()];
 }
 
 function rollLearnMove(game, chance, tag) {

@@ -3,12 +3,13 @@ import {
   applyTrainingResult, tickWeekForTraining, logBattleResult,
   addMoney, addFatigue, equipMove, getActiveMonster,
   switchActiveMonster, releaseMonster, TRAINING_LIMIT, SCENES,
+  findMonsterBySpecies,
 } from "./game/state.js";
 import { STONE_TABLETS, summonFromInput, getSpecies } from "./game/summon.js";
 import { SPECIES_LIST } from "./game/species.js";
 import { MENUS, computeTraining } from "./game/training.js";
 import { startBattleState, resolveTurn, RANK_LIST, rankInfo } from "./game/battle.js";
-import { getMove, STARTER_IDS_FOR_SPECIES } from "./game/moves.js";
+import { getMove, STARTER_IDS_FOR_SPECIES, moveEffectText } from "./game/moves.js";
 import { hashString } from "./game/rng.js";
 import { setupCanvas, render, FACILITIES } from "./ui/renderer.js";
 import { attachCanvasClick, attachKeyHandler } from "./ui/input.js";
@@ -119,14 +120,25 @@ function panelSummon() {
 function previewSummon(input) {
   const candidate = summonFromInput(input);
   const sp = getSpecies(candidate.species);
+  const existing = findMonsterBySpecies(game, candidate.species);
   setHint(
     `「${input}」から...\n` +
     `${candidate.name} (${sp.label}・${candidate.variant}) が現れた!\n` +
     `${varianceLine(candidate.stats, sp.base)}\n` +
-    `初期技: ${candidate.equipped.map(id => `「${getMove(id).name}」`).join(" ")}`
+    `初期技: ${candidate.equipped.map(id => `「${getMove(id).name}」`).join(" ")}` +
+    (existing ? `\nすでに ${existing.name} (${sp.label}・${existing.variant}・経過 ${existing.age}週・訓練 ${existing.trainingsUsed}/20) がいる。` : "")
   );
   actionsEl.innerHTML = "";
-  btn("仲間にする", () => { adoptMonster(game, candidate); setScene(game, SCENES.ISLAND); saveAndDraw(); }, { primary: true });
+  if (existing) {
+    btn(`${existing.name} と入れ替える`, () => {
+      releaseMonster(game, existing.id);
+      adoptMonster(game, candidate);
+      setScene(game, SCENES.ISLAND);
+      saveAndDraw();
+    }, { primary: true });
+  } else {
+    btn("仲間にする", () => { adoptMonster(game, candidate); setScene(game, SCENES.ISLAND); saveAndDraw(); }, { primary: true });
+  }
   btn("やめる", () => updatePanel(), { ghost: true });
 }
 
@@ -243,7 +255,7 @@ function addBattleMoveButton(move, m, b) {
   const bEl = document.createElement("button");
   bEl.className = "battle-move";
   bEl.disabled = move.sp > b.player.sp;
-  bEl.innerHTML = `${escapeHtml(move.name)} (${move.sp}SP)<span class="move-desc">${escapeHtml(move.element)}・${escapeHtml(move.style)} / ${escapeHtml(move.flavor)}</span>`;
+  bEl.innerHTML = `${escapeHtml(move.name)} (${move.sp}SP)<span class="move-desc">${escapeHtml(move.element)}・${escapeHtml(move.style)} / ${escapeHtml(move.flavor)} <span class="move-effect">${escapeHtml(moveEffectText(move))}</span></span>`;
   bEl.addEventListener("click", () => {
     resolveTurn(game.activeBattle, m, move.id);
     if (game.activeBattle.done) finishActiveBattle();
@@ -362,7 +374,7 @@ function knownMoveHtml(id) {
 }
 
 function moveDetailsHtml(move) {
-  return `<span class="move-meta">${escapeHtml(move.element)}・${escapeHtml(move.style)}・${move.sp}SP</span><span class="move-desc">${escapeHtml(move.flavor)}</span>`;
+  return `<span class="move-meta">${escapeHtml(move.element)}・${escapeHtml(move.style)}・${move.sp}SP</span><span class="move-desc">${escapeHtml(move.flavor)} <span class="move-effect">${escapeHtml(moveEffectText(move))}</span></span>`;
 }
 
 function panelDex() {

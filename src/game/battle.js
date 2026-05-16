@@ -1,7 +1,7 @@
 // Deterministic battle helpers plus turn-by-turn battle state.
 
 import { makeRng, hashString } from "./rng.js";
-import { SPECIES_LIST } from "./species.js";
+import { SPECIES_LIST, getSpecies, typeMultiplier } from "./species.js";
 import { getMove, STARTER_IDS_FOR_SPECIES } from "./moves.js";
 
 const RANKS = {
@@ -147,10 +147,12 @@ function applyAction(battle, side, actor, defender, move, rng) {
   const crit = rng.chance(critChance) ? 1.6 : 1.0;
   const charge = self.charge || 1;
   self.charge = 1;
+  const multiplier = typeMultiplier(move.element, getSpecies(defender.species)?.type);
   const raw = move.power + atk * (0.55 + rng.next() * 0.25) - def * 0.28;
-  const dmg = Math.max(2, Math.floor(raw * crit * charge));
+  const dmg = Math.max(2, Math.floor(raw * crit * charge * multiplier));
   target.hp = Math.max(0, target.hp - dmg);
-  battle.log.unshift({ kind, text: `${actorName} の「${move.name}」! ${dmg}ダメージ${crit > 1 ? "、会心!" : ""}` });
+  const typeText = multiplier >= 2 ? " 効果は抜群!" : (multiplier <= 0.5 ? " いまひとつ..." : "");
+  battle.log.unshift({ kind, text: `${actorName} の「${move.name}」! ${dmg}ダメージ${crit > 1 ? "、会心!" : ""}${typeText}` });
 }
 
 function recoverSp(pool) {
