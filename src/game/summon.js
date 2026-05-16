@@ -1,5 +1,5 @@
 // Layered deterministic summon:
-// input -> seed -> species -> variant -> stat bias.
+// input -> seed -> species -> variant -> stat variance.
 
 import { hashString, makeRng, deriveSeed } from "./rng.js";
 import { SPECIES_LIST, getSpecies } from "./species.js";
@@ -20,7 +20,8 @@ export function summonFromInput(input) {
   const rng3 = makeRng(deriveSeed(seed, "bias"));
   const stats = {};
   for (const k of Object.keys(species.base)) {
-    stats[k] = Math.max(1, species.base[k] + rng3.int(-8, 8));
+    const mult = 0.85 + rng3.next() * 0.45;
+    stats[k] = Math.max(1, Math.round(species.base[k] * mult));
   }
 
   const knownMoves = STARTER_IDS_FOR_SPECIES(species.id);

@@ -83,6 +83,7 @@ export function render(ctx, game, view) {
     case SCENES.BATTLE: return renderArena(ctx, game, view, "バトル");
     case SCENES.HOME: return renderRoom(ctx, game, "ホーム", "#2a2a3a", "ステータス確認と休養ができる");
     case SCENES.STATUS: return renderRoom(ctx, game, "ステータス", "#233044", "能力と技を確認しよう");
+    case SCENES.DEX: return renderRoom(ctx, game, "図鑑", "#233044", "出会ったクリッターを記録する");
     case SCENES.RESULT: return renderArena(ctx, game, view, "結果");
     case SCENES.RETIRE: return renderRetire(ctx, game);
     default: return renderTitle(ctx);

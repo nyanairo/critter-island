@@ -1,7 +1,6 @@
 // Single authoritative game state + explicit actions.
 
 import { save, load, clear } from "./save.js";
-import { getSpecies } from "./species.js";
 import { MOVE_IDS, LEARNABLE_POOL, STARTER_IDS_FOR_SPECIES, LEGACY_MOVE_IDS, getMove } from "./moves.js";
 import { makeRng, deriveSeed } from "./rng.js";
 
@@ -18,6 +17,7 @@ export const SCENES = {
   BATTLE: "battle",
   HOME: "home",
   STATUS: "status",
+  DEX: "dex",
   RESULT: "result",
   RETIRE: "retire",
 };
@@ -34,6 +34,7 @@ export function initialGame() {
     lastBattle: null,
     lastTraining: null,
     activeBattle: null,
+    dex: { summoned: [], encountered: [] },
   };
 }
 
@@ -50,6 +51,9 @@ export function normalizeGame(raw) {
   if (!Object.values(SCENES).includes(g.scene)) g.scene = SCENES.TITLE;
   if (!Array.isArray(g.log)) g.log = [];
   if (!Array.isArray(g.hallOfFame)) g.hallOfFame = [];
+  if (!g.dex || typeof g.dex !== "object") g.dex = { summoned: [], encountered: [] };
+  if (!Array.isArray(g.dex.summoned)) g.dex.summoned = [];
+  if (!Array.isArray(g.dex.encountered)) g.dex.encountered = [];
   if (!Number.isFinite(g.money)) g.money = base.money;
   if (!Number.isFinite(g.week) || g.week < 1) g.week = 1;
   if (g.monster && typeof g.monster !== "object") g.monster = null;
@@ -82,6 +86,14 @@ function addLog(game, line, kind = "info") {
   if (game.log.length > 40) game.log.length = 40;
 }
 
+function markDex(game, bucket, speciesId) {
+  if (!speciesId) return;
+  if (!game.dex || typeof game.dex !== "object") game.dex = { summoned: [], encountered: [] };
+  if (!Array.isArray(game.dex.summoned)) game.dex.summoned = [];
+  if (!Array.isArray(game.dex.encountered)) game.dex.encountered = [];
+  if (!game.dex[bucket].includes(speciesId)) game.dex[bucket].push(speciesId);
+}
+
 export function setScene(game, scene) {
   game.scene = scene;
 }
@@ -97,6 +109,7 @@ export function adoptMonster(game, monster) {
     losses: 0,
     retired: false,
   };
+  markDex(game, "summoned", clean.species);
   addLog(game, `${clean.name} を仲間にした!`, "good");
 }
 
@@ -143,6 +156,7 @@ export function logBattleResult(game, result) {
   game.lastBattle = result;
   const m = game.monster;
   if (!m) return;
+  if (result.opponentSpecies) markDex(game, "encountered", result.opponentSpecies);
   if (result.win) m.wins += 1; else m.losses += 1;
   addLog(game, `vs ${result.opponentName}: ${result.win ? "勝利!" : "敗北..."}`, result.win ? "good" : "bad");
   result.learned = rollLearnMove(game, 0.15, "battle:" + game.week + ":" + (result.seed || 0));

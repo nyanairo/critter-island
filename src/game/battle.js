@@ -56,6 +56,7 @@ export function startBattleState({ monster, rank, seed }) {
       ...opponent,
       hp: opponent.hpMax,
       sp: 99,
+      spMax: 99,
       charge: 1,
       critTurns: 0,
     },
@@ -137,8 +138,8 @@ function applyAction(battle, side, actor, defender, move, rng) {
     return;
   }
 
-  const atkKey = move.style === "special" ? "smt" : "pow";
-  const defKey = move.style === "special" ? "spr" : "spr";
+  const atkKey = move.style === "特殊" ? "smt" : "pow";
+  const defKey = "spr";
   const fatigue = side === "player" ? actor.fatigue || 0 : 0;
   const atk = eff(actor.stats, atkKey, fatigue);
   const def = eff(defender.stats, defKey, side === "opponent" ? defender.fatigue || 0 : 0);

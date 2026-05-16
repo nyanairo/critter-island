@@ -4,9 +4,10 @@ import {
   addMoney, retireToHall, addFatigue, equipMove, SCENES,
 } from "./game/state.js";
 import { STONE_TABLETS, summonFromInput, getSpecies } from "./game/summon.js";
+import { SPECIES_LIST } from "./game/species.js";
 import { MENUS, computeTraining } from "./game/training.js";
 import { startBattleState, resolveTurn, RANK_LIST, rankInfo } from "./game/battle.js";
-import { getMove } from "./game/moves.js";
+import { getMove, STARTER_IDS_FOR_SPECIES } from "./game/moves.js";
 import { hashString } from "./game/rng.js";
 import { setupCanvas, render, FACILITIES } from "./ui/renderer.js";
 import { attachCanvasClick, attachKeyHandler } from "./ui/input.js";
@@ -19,6 +20,14 @@ const actionsEl = document.getElementById("actions");
 const hudEl = document.getElementById("hud");
 const resetBtn = document.getElementById("resetBtn");
 const ctx = setupCanvas(canvas);
+
+const STAT_META = {
+  hp: { label: "HP", color: "#ef6a6a" },
+  pow: { label: "力", color: "#ef9a3a" },
+  spd: { label: "速", color: "#ffd95a" },
+  smt: { label: "賢", color: "#6aa6ef" },
+  spr: { label: "魂", color: "#b07aef" },
+};
 
 let game = loadOrInit();
 let view = { player: { x: 184, y: 130 }, hoverFacility: null, opponentSpecies: null, opponentName: null };
@@ -52,7 +61,7 @@ function updateHud() {
 
 function updatePanel() {
   actionsEl.innerHTML = "";
-  panel.querySelectorAll(".log,.status-grid,.battle-bars,.move-list,.training-feedback").forEach(n => n.remove());
+  panel.querySelectorAll(".log,.status-grid,.battle-bars,.move-list,.training-feedback,.dex-list").forEach(n => n.remove());
   switch (game.scene) {
     case SCENES.TITLE: return panelTitle();
     case SCENES.ISLAND: return panelIsland();
@@ -62,6 +71,7 @@ function updatePanel() {
     case SCENES.BATTLE: return panelBattle();
     case SCENES.HOME: return panelHome();
     case SCENES.STATUS: return panelStatus();
+    case SCENES.DEX: return panelDex();
     case SCENES.RESULT: return panelResult();
     case SCENES.RETIRE: return panelRetire();
     default:
@@ -104,13 +114,15 @@ function panelIsland() {
 
 function panelSummon() {
   if (game.monster && !game.monster.retired) {
-    setHint(`${game.monster.name} がすでに仲間にいる。新しく呼び出すには引退まで待つか、最初からやり直そう。`);
+    setHint(`${game.monster.name} がすでに仲間にいる。図鑑を見たり、島に戻って育てよう。`);
+    btn("図鑑を見る", () => { setScene(game, SCENES.DEX); saveAndDraw(); });
     btn("島に戻る", goIsland);
     return;
   }
   setHint("石板を選ぶか、好きな言葉を入力して召喚しよう (同じ言葉なら同じ仲間が来る)");
   for (const tablet of STONE_TABLETS) btn(tablet.label, () => previewSummon(tablet.input));
   btn("言葉を入力して召喚", openInputOverlay, { primary: true });
+  btn("図鑑を見る", () => { setScene(game, SCENES.DEX); saveAndDraw(); });
   btn("島に戻る", goIsland, { ghost: true });
 }
 
@@ -121,12 +133,19 @@ function previewSummon(input) {
   setHint(
     `『${input}』からは…\n` +
     `${candidate.name} (${sp.label}・${candidate.variant}) が現れた!\n` +
-    `HP${stats.hp} 力${stats.pow} 速${stats.spd} 賢${stats.smt} 魂${stats.spr}\n` +
+    `${varianceLine(stats, sp.base)}\n` +
     `初期技: ${candidate.equipped.map(id => `「${getMove(id).name}」`).join(" ")}`
   );
   actionsEl.innerHTML = "";
   btn("仲間にする", () => { adoptMonster(game, candidate); setScene(game, SCENES.ISLAND); saveAndDraw(); }, { primary: true });
   btn("やめる", () => updatePanel(), { ghost: true });
+}
+
+function varianceLine(stats, base) {
+  return Object.keys(STAT_META).map(k => {
+    const pct = Math.round(((stats[k] / base[k]) - 1) * 100);
+    return `${STAT_META[k].label} ${stats[k]} (${pct >= 0 ? "+" : ""}${pct}%)`;
+  }).join(" / ");
 }
 
 function openInputOverlay() {
@@ -310,7 +329,7 @@ function panelStatus() {
   setHint(`${m.name} (${sp.label}・${m.variant}) のステータス`);
   const box = document.createElement("div");
   box.className = "status-grid";
-  box.innerHTML = Object.entries(m.stats).map(([k, v]) => statBar(statLabel(k), v)).join("");
+  box.innerHTML = Object.entries(m.stats).map(([k, v]) => statBar(k, v, sp.base[k])).join("");
   actionsEl.parentElement.insertBefore(box, actionsEl);
 
   const moves = document.createElement("div");
@@ -328,13 +347,42 @@ function panelStatus() {
   btn("島に戻る", goIsland, { ghost: true });
 }
 
-function statLabel(key) {
-  return ({ hp: "HP", pow: "力", spd: "速", smt: "賢", spr: "魂" })[key] || key.toUpperCase();
+function panelDex() {
+  setHint("モンスター図鑑");
+  const dex = game.dex || { summoned: [], encountered: [] };
+  const list = document.createElement("div");
+  list.className = "dex-list";
+  list.innerHTML = SPECIES_LIST.map(sp => dexEntryHtml(sp, dex)).join("");
+  actionsEl.parentElement.insertBefore(list, actionsEl);
+  btn("祭壇に戻る", () => { setScene(game, SCENES.SUMMON); saveAndDraw(); }, { primary: true });
 }
 
-function statBar(label, value) {
-  const pct = Math.max(4, Math.min(100, Math.round(value / 10)));
-  return `<div class="stat-bar"><span class="label">${label}</span><span class="track"><span class="fill" style="width:${pct}%"></span></span><span class="num">${value}</span></div>`;
+function dexEntryHtml(sp, dex) {
+  const summoned = dex.summoned.includes(sp.id);
+  const encountered = summoned || dex.encountered.includes(sp.id);
+  if (!encountered) {
+    return `<section class="dex-entry locked"><div class="silhouette"></div><h3>???</h3><p>まだ出会っていないクリッター。</p></section>`;
+  }
+  const moves = STARTER_IDS_FOR_SPECIES(sp.id).map(id => getMove(id)?.name || id).join(" / ");
+  return `
+    <section class="dex-entry">
+      <div class="dex-head">
+        <h3>${escapeHtml(sp.name)}</h3>
+        <span class="dex-badge ${summoned ? "summoned" : "seen"}">${summoned ? "召喚済み" : "未召喚"}</span>
+      </div>
+      <p class="dex-label">${escapeHtml(sp.label)}</p>
+      <p>${escapeHtml(sp.description)}</p>
+      <div class="dex-stats">${Object.entries(sp.base).map(([k, v]) => statBar(k, v, v)).join("")}</div>
+      <p>初期技: ${escapeHtml(moves)}</p>
+      ${summoned ? `<p class="dex-favorite">お気に入りの仲間</p>` : ""}
+    </section>`;
+}
+
+function statBar(key, value, baseValue = 0) {
+  const meta = STAT_META[key] || { label: key.toUpperCase(), color: "#66c089" };
+  const pct = Math.min(100, Math.max(0, value / 2));
+  const tickPct = Math.min(100, Math.max(0, baseValue / 2));
+  return `<div class="stat-bar"><span class="label">${meta.label}</span><span class="track"><span class="fill" style="width:${pct}%;background:${meta.color}"></span><span class="tick" style="left:${tickPct}%"></span></span><span class="num">${value}</span></div>`;
 }
 
 function openSwapModal(slotIndex) {
@@ -414,7 +462,7 @@ attachKeyHandler(key => {
   if (game.scene === SCENES.ISLAND) {
     const map = { "1": SCENES.SUMMON, "2": SCENES.TRAINING, "3": SCENES.ARENA, "4": SCENES.HOME };
     if (map[key]) { setScene(game, map[key]); saveAndDraw(); }
-  } else if ((key === "Escape" || key.toLowerCase() === "b") && ![SCENES.TITLE, SCENES.RESULT, SCENES.BATTLE].includes(game.scene)) {
+  } else if ((key === "Escape" || key.toLowerCase() === "b") && ![SCENES.TITLE, SCENES.RESULT, SCENES.BATTLE, SCENES.DEX].includes(game.scene)) {
     goIsland();
   }
 });
