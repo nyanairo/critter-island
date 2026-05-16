@@ -6,17 +6,22 @@ const INTERNAL_W = 384;
 const INTERNAL_H = 216;
 
 export const FACILITIES = [
-  { id: "shrine", x: 60, y: 60, w: 56, h: 48, label: "Shrine", scene: SCENES.SUMMON },
-  { id: "training", x: 180, y: 50, w: 56, h: 48, label: "Training", scene: SCENES.TRAINING },
-  { id: "arena", x: 290, y: 70, w: 64, h: 56, label: "Arena", scene: SCENES.ARENA },
-  { id: "home", x: 130, y: 140, w: 56, h: 48, label: "Home", scene: SCENES.HOME },
+  { id: "shrine", x: 60, y: 60, w: 56, h: 48, label: "祭壇", scene: SCENES.SUMMON },
+  { id: "training", x: 180, y: 50, w: 56, h: 48, label: "訓練所", scene: SCENES.TRAINING },
+  { id: "arena", x: 290, y: 70, w: 64, h: 56, label: "闘技場", scene: SCENES.ARENA },
+  { id: "home", x: 130, y: 140, w: 56, h: 48, label: "ホーム", scene: SCENES.HOME },
 ];
 
 export function setupCanvas(canvas) {
   const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const cssMultiplier = 2;
+  canvas.width = INTERNAL_W * dpr * cssMultiplier;
+  canvas.height = INTERNAL_H * dpr * cssMultiplier;
+  canvas.dataset.logicalWidth = String(INTERNAL_W);
+  canvas.dataset.logicalHeight = String(INTERNAL_H);
+  ctx.setTransform(dpr * cssMultiplier, 0, 0, dpr * cssMultiplier, 0, 0);
   ctx.imageSmoothingEnabled = false;
-  canvas.width = INTERNAL_W;
-  canvas.height = INTERNAL_H;
   return ctx;
 }
 
@@ -63,7 +68,7 @@ function drawFacility(ctx, fac, highlight) {
   ctx.fillRect(x + w / 2 - 5, y + h - 14, 10, 14);
   ctx.fillStyle = highlight ? "#ffd95a" : "#c8a040";
   ctx.fillRect(x + 4, y + 16, w - 8, 8);
-  drawText(ctx, label, x + w / 2, y + 17, "#1a1a1a", 7, "center");
+  drawText(ctx, label, x + w / 2, y + 16, "#1a1a1a", 10, "center");
 }
 
 export function render(ctx, game, view) {
@@ -72,13 +77,13 @@ export function render(ctx, game, view) {
   switch (game.scene) {
     case SCENES.TITLE: return renderTitle(ctx);
     case SCENES.ISLAND: return renderIsland(ctx, game, view);
-    case SCENES.SUMMON: return renderRoom(ctx, game, "Shrine", "#3a2a4a", "Summon a new partner");
-    case SCENES.TRAINING: return renderRoom(ctx, game, "Training", "#2a3a2a", "Build stats week by week");
-    case SCENES.ARENA: return renderArena(ctx, game, view, "Arena");
-    case SCENES.BATTLE: return renderArena(ctx, game, view, "Battle");
-    case SCENES.HOME: return renderRoom(ctx, game, "Home", "#2a2a3a", "Rest and review");
-    case SCENES.STATUS: return renderRoom(ctx, game, "Status", "#233044", "Stats and moves");
-    case SCENES.RESULT: return renderArena(ctx, game, view, "Result");
+    case SCENES.SUMMON: return renderRoom(ctx, game, "祭壇", "#3a2a4a", "石板を選んでモンスターを呼び出そう");
+    case SCENES.TRAINING: return renderRoom(ctx, game, "訓練所", "#2a3a2a", "今週のトレーニングを選ぼう");
+    case SCENES.ARENA: return renderArena(ctx, game, view, "闘技場");
+    case SCENES.BATTLE: return renderArena(ctx, game, view, "バトル");
+    case SCENES.HOME: return renderRoom(ctx, game, "ホーム", "#2a2a3a", "ステータス確認と休養ができる");
+    case SCENES.STATUS: return renderRoom(ctx, game, "ステータス", "#233044", "能力と技を確認しよう");
+    case SCENES.RESULT: return renderArena(ctx, game, view, "結果");
     case SCENES.RETIRE: return renderRetire(ctx, game);
     default: return renderTitle(ctx);
   }
@@ -89,10 +94,10 @@ function renderTitle(ctx) {
   ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
   ctx.fillStyle = "#3a5070";
   for (let i = 0; i < 60; i++) ctx.fillRect((i * 137) % INTERNAL_W, (i * 71) % INTERNAL_H, 1, 1);
-  drawText(ctx, "Critter Island", INTERNAL_W / 2, 60, "#ffd95a", 18, "center");
-  drawText(ctx, "Summon, train, battle", INTERNAL_W / 2, 90, "#b8c5d8", 10, "center");
+  drawText(ctx, "クリッター・アイランド", INTERNAL_W / 2, 58, "#ffd95a", 22, "center");
+  drawText(ctx, "召喚と育成と勝負の島", INTERNAL_W / 2, 90, "#b8c5d8", 13, "center");
   const sp = getSpecies("leaf");
-  drawMonster(ctx, "leaf", sp.palette, INTERNAL_W / 2 - 24, 140, 4);
+  drawMonster(ctx, "leaf", sp.palette, INTERNAL_W / 2 - 30, 132, 5);
 }
 
 function renderIsland(ctx, game, view) {
@@ -100,8 +105,8 @@ function renderIsland(ctx, game, view) {
   for (const f of FACILITIES) drawFacility(ctx, f, view?.hoverFacility === f.id);
   const p = view?.player || { x: 180, y: 130 };
   drawPlayer(ctx, p.x, p.y, 1);
-  drawText(ctx, `Week ${game.week}  ${game.money}G`, 8, 6, "#ffd95a", 10);
-  drawText(ctx, game.monster ? `${game.monster.name} (${game.monster.age}/50)` : "No critter - visit Shrine", 8, 18, "#eef3fb", 9);
+  drawText(ctx, `第${game.week}週  ${game.money}G`, 8, 6, "#ffd95a", 13);
+  drawText(ctx, game.monster ? `${game.monster.name} (${game.monster.age}/50)` : "仲間: なし - 祭壇で召喚しよう", 8, 22, "#eef3fb", 12);
 }
 
 function renderRoom(ctx, game, title, bg, hint) {
@@ -111,16 +116,16 @@ function renderRoom(ctx, game, title, bg, hint) {
   ctx.fillRect(0, INTERNAL_H - 32, INTERNAL_W, 32);
   ctx.fillStyle = "rgba(255,255,255,0.04)";
   for (let x = 0; x < INTERNAL_W; x += 16) ctx.fillRect(x, 0, 1, INTERNAL_H - 32);
-  drawText(ctx, title, INTERNAL_W / 2, 12, "#ffd95a", 14, "center");
-  drawText(ctx, hint, INTERNAL_W / 2, 34, "#b8c5d8", 10, "center");
+  drawText(ctx, title, INTERNAL_W / 2, 12, "#ffd95a", 18, "center");
+  drawText(ctx, hint, INTERNAL_W / 2, 38, "#b8c5d8", 13, "center");
   if (game.monster) {
     const sp = getSpecies(game.monster.species);
-    drawMonster(ctx, game.monster.species, sp.palette, INTERNAL_W / 2 - 24, 90, 4);
-    drawText(ctx, game.monster.name, INTERNAL_W / 2, 154, "#eef3fb", 12, "center");
-    drawText(ctx, `${sp.label} / ${game.monster.variant}`, INTERNAL_W / 2, 168, "#b8c5d8", 9, "center");
-    drawText(ctx, `Fatigue ${game.monster.fatigue}`, INTERNAL_W - 8, 6, "#b8c5d8", 9, "right");
+    drawMonster(ctx, game.monster.species, sp.palette, INTERNAL_W / 2 - 30, 86, 5);
+    drawText(ctx, game.monster.name, INTERNAL_W / 2, 154, "#eef3fb", 15, "center");
+    drawText(ctx, `${sp.label}・${game.monster.variant}`, INTERNAL_W / 2, 172, "#b8c5d8", 12, "center");
+    drawText(ctx, `疲労 ${game.monster.fatigue}`, INTERNAL_W - 8, 6, "#b8c5d8", 12, "right");
   }
-  drawText(ctx, `Week ${game.week}  ${game.money}G`, 8, 6, "#ffd95a", 10);
+  drawText(ctx, `第${game.week}週  ${game.money}G`, 8, 6, "#ffd95a", 13);
 }
 
 function renderArena(ctx, game, view, title) {
@@ -134,27 +139,27 @@ function renderArena(ctx, game, view, title) {
   for (let y = 30; y < 100; y += 8) {
     for (let x = 16; x < INTERNAL_W - 16; x += 12) ctx.fillRect(x + (((y / 8) | 0) % 2 ? 6 : 0), y, 4, 5);
   }
-  drawText(ctx, title, INTERNAL_W / 2, 10, "#ffd95a", 14, "center");
+  drawText(ctx, title, INTERNAL_W / 2, 10, "#ffd95a", 18, "center");
   if (game.monster) {
     const sp = getSpecies(game.monster.species);
     drawMonster(ctx, game.monster.species, sp.palette, 70, 124, 3);
-    drawText(ctx, game.monster.name, 88, 168, "#eef3fb", 9, "center");
+    drawText(ctx, game.monster.name, 88, 168, "#eef3fb", 12, "center");
   }
   if (view?.opponentSpecies) {
     const sp = getSpecies(view.opponentSpecies);
     drawMonster(ctx, view.opponentSpecies, sp.palette, INTERNAL_W - 106, 124, 3);
-    drawText(ctx, view.opponentName || "Opponent", INTERNAL_W - 88, 168, "#eef3fb", 9, "center");
+    drawText(ctx, view.opponentName || "相手", INTERNAL_W - 88, 168, "#eef3fb", 12, "center");
   }
 }
 
 function renderRetire(ctx, game) {
   ctx.fillStyle = "#1a1a2a";
   ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-  drawText(ctx, "Hall of Fame", INTERNAL_W / 2, 40, "#ffd95a", 16, "center");
+  drawText(ctx, "殿堂", INTERNAL_W / 2, 40, "#ffd95a", 20, "center");
   const last = game.hallOfFame[0];
   if (last) {
-    drawText(ctx, last.name, INTERNAL_W / 2, 70, "#eef3fb", 14, "center");
-    drawText(ctx, `Record: ${last.wins}W/${last.losses}L`, INTERNAL_W / 2, 94, "#b8c5d8", 11, "center");
+    drawText(ctx, last.name, INTERNAL_W / 2, 70, "#eef3fb", 18, "center");
+    drawText(ctx, `戦績: ${last.wins}勝${last.losses}敗`, INTERNAL_W / 2, 96, "#b8c5d8", 14, "center");
     const sp = getSpecies(last.species);
     if (sp) drawMonster(ctx, last.species, sp.palette, INTERNAL_W / 2 - 24, 110, 4);
   }

@@ -40,14 +40,14 @@ function draw() {
 function updateHud() {
   const m = game.monster;
   if (!m) {
-    hudEl.textContent = `Week ${game.week}\n${game.money}G`;
+    hudEl.textContent = `第${game.week}週\n${game.money}G`;
     return;
   }
   const s = m.stats;
   hudEl.textContent =
-    `Week ${game.week}   ${game.money}G\n` +
-    `HP${s.hp} POW${s.pow} SPD${s.spd} SMT${s.smt} SPR${s.spr}\n` +
-    `Fatigue ${m.fatigue}  ${m.wins}W/${m.losses}L`;
+    `第${game.week}週   ${game.money}G\n` +
+    `HP${s.hp} 力${s.pow} 速${s.spd} 賢${s.smt} 魂${s.spr}\n` +
+    `疲労${m.fatigue}  ${m.wins}勝${m.losses}敗`;
 }
 
 function updatePanel() {
@@ -86,32 +86,32 @@ function setHint(text) {
 }
 
 function panelTitle() {
-  setHint("Summon, train, and battle critters on the island.");
-  btn("Start", () => { setScene(game, SCENES.ISLAND); saveAndDraw(); }, { primary: true });
-  if (game.hallOfFame.length > 0) btn("Hall of Fame", () => { setScene(game, SCENES.RETIRE); saveAndDraw(); });
+  setHint("島で召喚 → 週ごとにトレーニング → 闘技場で勝負。\nコアループ一巡を体験できる MVP です。");
+  btn("はじめる", () => { setScene(game, SCENES.ISLAND); saveAndDraw(); }, { primary: true });
+  if (game.hallOfFame.length > 0) btn("殿堂を見る", () => { setScene(game, SCENES.RETIRE); saveAndDraw(); });
 }
 
 function panelIsland() {
   if (game.monster?.retired) {
-    setHint(`${game.monster.name} is ready to retire.`);
-    btn("Enter Hall of Fame", () => { retireToHall(game); setScene(game, SCENES.RETIRE); saveAndDraw(); }, { primary: true });
+    setHint(`${game.monster.name} は寿命を迎えました。殿堂入りして新しい仲間を呼び出しましょう。`);
+    btn("殿堂入りさせる", () => { retireToHall(game); setScene(game, SCENES.RETIRE); saveAndDraw(); }, { primary: true });
     return;
   }
-  setHint("Choose a facility. 1 Shrine / 2 Training / 3 Arena / 4 Home / S Status");
+  setHint("施設をクリックして移動。 [1]祭壇  [2]訓練所  [3]闘技場  [4]ホーム  [S]ステータス");
   for (const f of FACILITIES) btn(f.label, () => { setScene(game, f.scene); saveAndDraw(); });
-  if (game.monster) btn("Status", () => { setScene(game, SCENES.STATUS); saveAndDraw(); });
+  if (game.monster) btn("ステータス", () => { setScene(game, SCENES.STATUS); saveAndDraw(); });
 }
 
 function panelSummon() {
   if (game.monster && !game.monster.retired) {
-    setHint(`${game.monster.name} is already your partner.`);
-    btn("Back", goIsland);
+    setHint(`${game.monster.name} がすでに仲間にいる。新しく呼び出すには引退まで待つか、最初からやり直そう。`);
+    btn("島に戻る", goIsland);
     return;
   }
-  setHint("Choose a tablet or enter words. The same words always summon the same critter.");
+  setHint("石板を選ぶか、好きな言葉を入力して召喚しよう (同じ言葉なら同じ仲間が来る)");
   for (const tablet of STONE_TABLETS) btn(tablet.label, () => previewSummon(tablet.input));
-  btn("Enter Words", openInputOverlay, { primary: true });
-  btn("Back", goIsland, { ghost: true });
+  btn("言葉を入力して召喚", openInputOverlay, { primary: true });
+  btn("島に戻る", goIsland, { ghost: true });
 }
 
 function previewSummon(input) {
@@ -119,24 +119,26 @@ function previewSummon(input) {
   const sp = getSpecies(candidate.species);
   const stats = candidate.stats;
   setHint(
-    `${candidate.name} (${sp.label} / ${candidate.variant}) appeared.\n` +
-    `HP${stats.hp} POW${stats.pow} SPD${stats.spd} SMT${stats.smt} SPR${stats.spr}\n` +
-    `Starter: ${candidate.equipped.map(id => getMove(id).name).join(", ")}`
+    `『${input}』からは…\n` +
+    `${candidate.name} (${sp.label}・${candidate.variant}) が現れた!\n` +
+    `HP${stats.hp} 力${stats.pow} 速${stats.spd} 賢${stats.smt} 魂${stats.spr}\n` +
+    `初期技: ${candidate.equipped.map(id => `「${getMove(id).name}」`).join(" ")}`
   );
   actionsEl.innerHTML = "";
-  btn("Adopt", () => { adoptMonster(game, candidate); setScene(game, SCENES.ISLAND); saveAndDraw(); }, { primary: true });
-  btn("Cancel", () => updatePanel(), { ghost: true });
+  btn("仲間にする", () => { adoptMonster(game, candidate); setScene(game, SCENES.ISLAND); saveAndDraw(); }, { primary: true });
+  btn("やめる", () => updatePanel(), { ghost: true });
 }
 
 function openInputOverlay() {
   overlay.hidden = false;
   overlay.innerHTML = `
     <div>
-      <h2>Summon Words</h2>
-      <input type="text" id="ovInput" placeholder="moss moon melody" autocomplete="off" />
+      <h2>言葉を入力</h2>
+      <p style="margin:4px 0; font-size:12px; color:#b8c5d8;">同じ言葉からは同じ仲間が呼び出される</p>
+      <input type="text" id="ovInput" placeholder="例: ねこじゃらし" autocomplete="off" />
       <div class="row">
-        <button id="ovOk" class="primary">Summon</button>
-        <button id="ovCancel" class="ghost">Cancel</button>
+        <button id="ovOk" class="primary">召喚する</button>
+        <button id="ovCancel" class="ghost">やめる</button>
       </div>
     </div>`;
   const input = overlay.querySelector("#ovInput");
@@ -156,9 +158,9 @@ function openInputOverlay() {
 function panelTraining() {
   if (!activeMonsterGuard()) return;
   const m = game.monster;
-  setHint(`Choose this week's training. ${50 - m.age} weeks left / Fatigue ${m.fatigue}/100`);
+  setHint(`今週のトレーニングを選ぼう (1週進行)\n寿命まであと ${50 - m.age} 週 / 疲労 ${m.fatigue}/100`);
   for (const menu of MENUS) btn(menu.label, () => doTraining(menu.id));
-  btn("Back", goIsland, { ghost: true });
+  btn("島に戻る", goIsland, { ghost: true });
 }
 
 function doTraining(menuId) {
@@ -173,12 +175,12 @@ function doTraining(menuId) {
 
 function panelArena() {
   if (!activeMonsterGuard()) return;
-  setHint("Choose a rank. A battle advances the week after it finishes.");
+  setHint("ランクを選んで挑戦。勝つと報酬がもらえる。1試合 = 1週進行");
   for (const r of RANK_LIST) {
     const info = rankInfo(r);
-    btn(`${info.label} (${info.reward}G)`, () => startBattle(r));
+    btn(`${info.label} (報酬 ${info.reward}G)`, () => startBattle(r));
   }
-  btn("Back", goIsland, { ghost: true });
+  btn("島に戻る", goIsland, { ghost: true });
 }
 
 function startBattle(rank) {
@@ -197,7 +199,7 @@ function panelBattle() {
   }
   const b = game.activeBattle;
   if (b.done) return finishActiveBattle();
-  setHint(`Turn ${b.turn}: choose a move.`);
+  setHint(`ターン ${b.turn}: 技を選ぼう`);
   insertBattleBars(b);
   const moves = game.monster.equipped.map(getMove).filter(Boolean);
   const affordable = moves.filter(move => move.sp <= b.player.sp);
@@ -209,7 +211,7 @@ function panelBattle() {
     }, { disabled: move.sp > b.player.sp });
   }
   if (affordable.length === 0) {
-    btn("Wait", () => {
+    btn("待機", () => {
       resolveTurn(game.activeBattle, game.monster, "wait");
       if (game.activeBattle.done) finishActiveBattle();
       else saveAndDraw();
@@ -236,7 +238,7 @@ function barHtml(label, value, max, cls) {
 function finishActiveBattle() {
   const result = game.activeBattle.result;
   logBattleResult(game, result);
-  if (result.reward) addMoney(game, result.reward, `${rankInfo(result.rank).label} prize`);
+  if (result.reward) addMoney(game, result.reward, `${rankInfo(result.rank).label}優勝`);
   addFatigue(game, 12);
   tickWeekForTraining(game);
   game.activeBattle = null;
@@ -253,61 +255,65 @@ function panelResult() {
     return saveAndDraw();
   }
   hintEl.innerHTML = result.win
-    ? `<strong style="color:#66c089">Victory!</strong> Reward +${result.reward}G`
-    : `<strong style="color:#ef6a6a">Defeat.</strong>`;
+    ? `<strong style="color:#66c089">勝利!</strong> 報酬 +${result.reward}G`
+    : `<strong style="color:#ef6a6a">敗北...</strong>`;
   const log = document.createElement("div");
   log.className = "log";
   log.innerHTML = (result.log || []).map(l => `<div class="line ${l.kind}">${escapeHtml(l.text)}</div>`).join("");
   actionsEl.parentElement.insertBefore(log, actionsEl);
-  btn("Back to Island", goIsland, { primary: true });
+  btn("島に戻る", goIsland, { primary: true });
 }
 
 function panelHome() {
   if (!game.monster) {
-    setHint("Summon a critter first.");
-    btn("Back", goIsland);
+    setHint("まずは祭壇で仲間を呼び出そう。");
+    btn("島に戻る", goIsland);
     return;
   }
   const m = game.monster;
   const sp = getSpecies(m.species);
-  setHint(`${m.name} (${sp.label} / ${m.variant})\nAge ${m.age}/50  Fatigue ${m.fatigue}/100  Record ${m.wins}W/${m.losses}L`);
-  btn("Rest (1 week, fatigue -40)", () => {
+  setHint(`${m.name} (${sp.label}・${m.variant})\n年齢 ${m.age}/50 週   疲労 ${m.fatigue}/100\n戦績: ${m.wins}勝${m.losses}敗`);
+  btn("ゆっくり休む (1週・疲労-40)", () => {
     m.fatigue = Math.max(0, m.fatigue - 40);
     tickWeekForTraining(game);
     saveAndDraw();
   });
-  btn("Status", () => { setScene(game, SCENES.STATUS); saveAndDraw(); });
-  if (m.retired) btn("Enter Hall of Fame", () => { retireToHall(game); setScene(game, SCENES.RETIRE); saveAndDraw(); }, { primary: true });
-  btn("Back", goIsland, { ghost: true });
+  btn("ステータス", () => { setScene(game, SCENES.STATUS); saveAndDraw(); });
+  if (m.retired) btn("殿堂入りさせる", () => { retireToHall(game); setScene(game, SCENES.RETIRE); saveAndDraw(); }, { primary: true });
+  btn("島に戻る", goIsland, { ghost: true });
 }
 
 function panelStatus() {
   if (!game.monster) {
-    setHint("No active critter.");
-    btn("Back", goIsland);
+    setHint("いま一緒にいる仲間はいないよ。");
+    btn("島に戻る", goIsland);
     return;
   }
   const m = game.monster;
   const sp = getSpecies(m.species);
-  setHint(`${m.name} (${sp.label} / ${m.variant})`);
+  setHint(`${m.name} (${sp.label}・${m.variant}) のステータス`);
   const box = document.createElement("div");
   box.className = "status-grid";
-  box.innerHTML = Object.entries(m.stats).map(([k, v]) => statBar(k.toUpperCase(), v)).join("");
+  box.innerHTML = Object.entries(m.stats).map(([k, v]) => statBar(statLabel(k), v)).join("");
   actionsEl.parentElement.insertBefore(box, actionsEl);
 
   const moves = document.createElement("div");
   moves.className = "move-list";
   moves.innerHTML = `
-    <h3>Equipped</h3>
+    <h3>装備中の技</h3>
     ${m.equipped.map((id, i) => `<button class="move-row" data-slot="${i}">${i + 1}. ${escapeHtml(getMove(id)?.name || id)}</button>`).join("")}
-    <h3>Known Moves</h3>
+    <h3>習得済みの技</h3>
     ${m.knownMoves.map(id => `<div class="known-move">${escapeHtml(getMove(id)?.name || id)} <span>${getMove(id)?.sp ?? "?"}SP</span></div>`).join("")}
   `;
   actionsEl.parentElement.insertBefore(moves, actionsEl);
   moves.querySelectorAll(".move-row").forEach(row => {
     row.addEventListener("click", () => openSwapModal(Number(row.dataset.slot)));
   });
-  btn("Back", goIsland, { ghost: true });
+  btn("島に戻る", goIsland, { ghost: true });
+}
+
+function statLabel(key) {
+  return ({ hp: "HP", pow: "力", spd: "速", smt: "賢", spr: "魂" })[key] || key.toUpperCase();
 }
 
 function statBar(label, value) {
@@ -320,10 +326,10 @@ function openSwapModal(slotIndex) {
   overlay.hidden = false;
   overlay.innerHTML = `
     <div>
-      <h2>Swap Move Slot ${slotIndex + 1}</h2>
+      <h2>スロット${slotIndex + 1}の技を変更</h2>
       <div class="row">
         ${m.knownMoves.map(id => `<button data-move="${id}">${escapeHtml(getMove(id)?.name || id)}</button>`).join("")}
-        <button id="ovCancel" class="ghost">Cancel</button>
+        <button id="ovCancel" class="ghost">やめる</button>
       </div>
     </div>`;
   overlay.querySelectorAll("[data-move]").forEach(b => {
@@ -337,15 +343,15 @@ function openSwapModal(slotIndex) {
 }
 
 function panelRetire() {
-  setHint("Hall of Fame. Summon a new critter at the shrine.");
-  btn("Shrine", () => { setScene(game, SCENES.SUMMON); saveAndDraw(); }, { primary: true });
-  btn("Back", goIsland, { ghost: true });
+  setHint("これまでの戦士たちを称えよう。新しい仲間は祭壇から。");
+  btn("祭壇へ", () => { setScene(game, SCENES.SUMMON); saveAndDraw(); }, { primary: true });
+  btn("島に戻る", goIsland, { ghost: true });
 }
 
 function activeMonsterGuard() {
   if (!game.monster || game.monster.retired) {
-    setHint("You need an active critter.");
-    btn("Back", goIsland);
+    setHint("出場するには元気な仲間が必要だよ。");
+    btn("島に戻る", goIsland);
     return false;
   }
   return true;
@@ -398,7 +404,7 @@ attachKeyHandler(key => {
 });
 
 resetBtn.addEventListener("click", () => {
-  if (!confirm("Delete save and start over?")) return;
+  if (!confirm("セーブを消して最初からやり直しますか?")) return;
   game = resetAll();
   view = { player: { x: 184, y: 130 }, hoverFacility: null, opponentSpecies: null, opponentName: null };
   saveAndDraw();

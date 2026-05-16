@@ -2,7 +2,7 @@
 
 import { save, load, clear } from "./save.js";
 import { getSpecies } from "./species.js";
-import { MOVE_IDS, LEARNABLE_POOL, STARTER_IDS_FOR_SPECIES, LEGACY_MOVE_IDS } from "./moves.js";
+import { MOVE_IDS, LEARNABLE_POOL, STARTER_IDS_FOR_SPECIES, LEGACY_MOVE_IDS, getMove } from "./moves.js";
 import { makeRng, deriveSeed } from "./rng.js";
 
 const STAT_CAP = 999;
@@ -96,7 +96,7 @@ export function adoptMonster(game, monster) {
     losses: 0,
     retired: false,
   };
-  addLog(game, `${clean.name} joined you.`, "good");
+  addLog(game, `${clean.name} を仲間にした!`, "good");
 }
 
 export function advanceWeek(game) {
@@ -106,7 +106,7 @@ export function advanceWeek(game) {
   m.fatigue = Math.max(0, m.fatigue - 5);
   if (m.age >= LIFESPAN_WEEKS) {
     m.retired = true;
-    addLog(game, `${m.name} retired and is ready for the hall of fame.`, "info");
+    addLog(game, `${m.name} は引退して殿堂入りを待っている`, "info");
     return { retired: true };
   }
   return { retired: false };
@@ -143,7 +143,7 @@ export function logBattleResult(game, result) {
   const m = game.monster;
   if (!m) return;
   if (result.win) m.wins += 1; else m.losses += 1;
-  addLog(game, `vs ${result.opponentName}: ${result.win ? "win" : "loss"}`, result.win ? "good" : "bad");
+  addLog(game, `vs ${result.opponentName}: ${result.win ? "勝利!" : "敗北..."}`, result.win ? "good" : "bad");
   rollLearnMove(game, 0.15, "battle:" + game.week + ":" + (result.seed || 0));
 }
 
@@ -181,7 +181,7 @@ export function equipMove(game, slotIndex, moveId) {
   if (!m.knownMoves.includes(moveId) || slotIndex < 0 || slotIndex >= 3) return false;
   m.equipped[slotIndex] = moveId;
   m.move = m.equipped[0];
-  addLog(game, `${moveId} equipped.`, "info");
+  addLog(game, `「${getMove(moveId)?.name || moveId}」を装備した`, "info");
   return true;
 }
 
@@ -224,7 +224,7 @@ function rollLearnMove(game, chance, tag) {
   if (!rng.chance(chance)) return null;
   const learned = rng.pick(unknown);
   m.knownMoves.push(learned);
-  addLog(game, `${m.name} learned ${learned}.`, "good");
+  addLog(game, `「${getMove(learned)?.name || learned}」を覚えた!`, "good");
   return learned;
 }
 

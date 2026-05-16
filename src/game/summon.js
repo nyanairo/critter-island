@@ -5,10 +5,10 @@ import { hashString, makeRng, deriveSeed } from "./rng.js";
 import { SPECIES_LIST, getSpecies } from "./species.js";
 import { STARTER_IDS_FOR_SPECIES } from "./moves.js";
 
-const VARIANTS = ["plain", "sprout", "bright", "shadow", "lucky"];
+const VARIANTS = ["ふつう", "つよめ", "あかね", "あおぞら", "つきあかり"];
 
 export function summonFromInput(input) {
-  const raw = (input || "").trim() || "nameless";
+  const raw = (input || "").trim() || "なまえ";
   const seed = hashString(raw);
 
   const rng1 = makeRng(deriveSeed(seed, "species"));
@@ -41,8 +41,8 @@ export function summonFromInput(input) {
 }
 
 function makeName(species, seed) {
-  const tails = ["kun", "chan", "san", "maru", "suke"];
-  return `${species.name}-${tails[seed % tails.length]}`;
+  const tails = ["くん", "ちゃん", "さん", "丸", "助"];
+  return `${species.name}${tails[seed % tails.length]}`;
 }
 
 export function previewSeeds(seeds) {
@@ -50,9 +50,9 @@ export function previewSeeds(seeds) {
 }
 
 export const STONE_TABLETS = [
-  { label: "Moss tablet", input: "moss-stone-of-the-grove" },
-  { label: "Ember tablet", input: "ember-stone-of-the-volcano" },
-  { label: "Tide tablet", input: "tide-stone-of-the-shore" },
+  { label: "苔の石板", input: "moss-stone-of-the-grove" },
+  { label: "炎の石板", input: "ember-stone-of-the-volcano" },
+  { label: "水の石板", input: "tide-stone-of-the-shore" },
 ];
 
 export { getSpecies };

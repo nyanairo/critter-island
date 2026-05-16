@@ -5,9 +5,9 @@ import { SPECIES_LIST } from "./species.js";
 import { getMove, STARTER_IDS_FOR_SPECIES } from "./moves.js";
 
 const RANKS = {
-  E: { label: "E Rank", level: 1.00, reward: 80, oppHp: 70 },
-  D: { label: "D Rank", level: 1.20, reward: 160, oppHp: 90 },
-  C: { label: "C Rank", level: 1.45, reward: 280, oppHp: 110 },
+  E: { label: "Eランク", level: 1.00, reward: 80, oppHp: 70 },
+  D: { label: "Dランク", level: 1.20, reward: 160, oppHp: 90 },
+  C: { label: "Cランク", level: 1.45, reward: 280, oppHp: 110 },
 };
 
 export const RANK_LIST = Object.keys(RANKS);
@@ -60,8 +60,8 @@ export function startBattleState({ monster, rank, seed }) {
       critTurns: 0,
     },
     log: [
-      { kind: "info", text: `Battle start: ${monster.name} vs ${opponent.name}` },
-      { kind: "info", text: `Turn 1. Choose a move.` },
+      { kind: "info", text: `バトル開始! ${monster.name} vs ${opponent.name}` },
+      { kind: "info", text: `ターン 1: 技を選ぼう` },
     ],
   };
 }
@@ -71,7 +71,7 @@ export function resolveTurn(activeBattle, monster, choice) {
   const rng = makeRng((activeBattle.seed ^ hashString("turn:" + activeBattle.turn)) >>> 0);
   const playerMove = choice === "wait" ? null : getMove(choice);
   if (playerMove && playerMove.sp > activeBattle.player.sp) {
-    activeBattle.log.unshift({ kind: "bad", text: `Not enough SP for ${playerMove.name}.` });
+    activeBattle.log.unshift({ kind: "bad", text: `SPが足りなくて「${playerMove.name}」を出せない!` });
     return activeBattle;
   }
 
@@ -96,7 +96,7 @@ export function resolveTurn(activeBattle, monster, choice) {
   if (finished) finishBattle(activeBattle);
   else {
     activeBattle.turn += 1;
-    activeBattle.log.unshift({ kind: "info", text: `Turn ${activeBattle.turn}. Choose a move.` });
+    activeBattle.log.unshift({ kind: "info", text: `ターン ${activeBattle.turn}: 技を選ぼう` });
   }
   return activeBattle;
 }
@@ -115,7 +115,7 @@ function applyAction(battle, side, actor, defender, move, rng) {
   const actorName = actor.name;
 
   if (!move) {
-    battle.log.unshift({ kind: "info", text: `${actorName} waits and recovers.` });
+    battle.log.unshift({ kind: "info", text: `${actorName} は待機して息を整えた。` });
     recoverSp(self);
     return;
   }
@@ -123,17 +123,17 @@ function applyAction(battle, side, actor, defender, move, rng) {
   self.sp = Math.max(0, self.sp - move.sp);
   if (move.effect?.kind === "sp_heal") {
     self.sp = Math.min(self.spMax, self.sp + move.effect.amount);
-    battle.log.unshift({ kind, text: `${actorName} used ${move.name} and restored SP.` });
+    battle.log.unshift({ kind, text: `${actorName} の「${move.name}」! SPを回復した。` });
     return;
   }
   if (move.effect?.kind === "charge") {
     self.charge = Math.max(self.charge || 1, move.effect.mult);
-    battle.log.unshift({ kind, text: `${actorName} used ${move.name} and charged up.` });
+    battle.log.unshift({ kind, text: `${actorName} の「${move.name}」! 力をためた。` });
     return;
   }
   if (move.effect?.kind === "crit_up") {
     self.critTurns = move.effect.turns;
-    battle.log.unshift({ kind, text: `${actorName} used ${move.name} and focused.` });
+    battle.log.unshift({ kind, text: `${actorName} の「${move.name}」! 集中力が高まった。` });
     return;
   }
 
@@ -149,7 +149,7 @@ function applyAction(battle, side, actor, defender, move, rng) {
   const raw = move.power + atk * (0.55 + rng.next() * 0.25) - def * 0.28;
   const dmg = Math.max(2, Math.floor(raw * crit * charge));
   target.hp = Math.max(0, target.hp - dmg);
-  battle.log.unshift({ kind, text: `${actorName} used ${move.name}: ${dmg} damage${crit > 1 ? " critical" : ""}.` });
+  battle.log.unshift({ kind, text: `${actorName} の「${move.name}」! ${dmg}ダメージ${crit > 1 ? "、会心!" : ""}` });
 }
 
 function recoverSp(pool) {
@@ -172,7 +172,7 @@ function finishBattle(battle) {
     seed: battle.seed,
     finalHp: { me: Math.max(0, battle.player.hp), opp: Math.max(0, battle.opponent.hp) },
   };
-  battle.log.unshift({ kind: win ? "good" : "bad", text: win ? `Victory! Reward ${reward}G.` : "Defeat." });
+  battle.log.unshift({ kind: win ? "good" : "bad", text: win ? `勝利! 報酬 ${reward}G。` : "敗北..." });
 }
 
 export function runBattle({ monster, rank, seed }) {

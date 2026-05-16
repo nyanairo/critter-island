@@ -5,7 +5,9 @@ export function attachCanvasClick(canvas, handler) {
     const rect = canvas.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width;
     const py = (e.clientY - rect.top) / rect.height;
-    return { x: Math.floor(px * canvas.width), y: Math.floor(py * canvas.height) };
+    const w = Number(canvas.dataset.logicalWidth) || canvas.width;
+    const h = Number(canvas.dataset.logicalHeight) || canvas.height;
+    return { x: Math.floor(px * w), y: Math.floor(py * h) };
   }
   canvas.addEventListener("click", e => {
     handler(toInternal(e));
