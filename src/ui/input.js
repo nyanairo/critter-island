@@ -18,6 +18,8 @@ export function attachCanvasClick(canvas, handler) {
 export function attachKeyHandler(handler) {
   window.addEventListener("keydown", e => {
     if (e.repeat) return;
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
     handler(e.key);
   });
 }

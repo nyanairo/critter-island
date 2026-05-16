@@ -116,6 +116,8 @@ button:disabled {
   text-align: center;
 }
 
+.overlay[hidden] { display: none; }
+
 .overlay > div {
   background: var(--surface);
   border: 2px solid var(--line);
