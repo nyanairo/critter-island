@@ -4,7 +4,7 @@ import { getSpecies } from "./species.js";
 export const MENUS = [
   { id: "hp", label: "走り込み", focus: "hp", fatigue: 14 },
   { id: "pow", label: "ちから訓練", focus: "pow", fatigue: 18 },
-  { id: "spd", label: "敏捷訓練", focus: "spd", fatigue: 16 },
+  { id: "spd", label: "素早さ訓練", focus: "spd", fatigue: 16 },
   { id: "smt", label: "勉強", focus: "smt", fatigue: 10 },
   { id: "spr", label: "瞑想", focus: "spr", fatigue: 8 },
   { id: "rest", label: "休養", focus: null, fatigue: -30 },
@@ -21,7 +21,7 @@ export function computeTraining(monster, menuId, weekSeed) {
   const deltas = { hp: 0, pow: 0, spd: 0, smt: 0, spr: 0 };
 
   if (menu.id === "rest") {
-    return { menu: menu.id, deltas, fatigueAdd: menu.fatigue, message: `${monster.name} は休んだ。(疲労-${Math.abs(menu.fatigue)})` };
+    return { menu: menu.id, deltas, fatigueAdd: menu.fatigue, message: `${monster.name} は休んだ。疲労-${Math.abs(menu.fatigue)}` };
   }
 
   const tired = monster.fatigue >= 60;
@@ -36,7 +36,7 @@ export function computeTraining(monster, menuId, weekSeed) {
   if (sideGain > 0) deltas[sideKey] += sideGain;
 
   const message = tired
-    ? `${monster.name} は疲れ気味… ${menu.label} +${focusGain} ${statLabel(menu.focus)}`
+    ? `${monster.name} は疲れ気味... ${menu.label} +${focusGain} ${statLabel(menu.focus)}`
     : `${menu.label}: +${focusGain} ${statLabel(menu.focus)}${sideGain ? ` (+${sideGain} ${statLabel(sideKey)})` : ""}`;
   return { menu: menu.id, deltas, fatigueAdd: menu.fatigue, message };
 }

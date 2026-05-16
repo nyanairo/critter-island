@@ -5,7 +5,7 @@ import { MOVE_IDS, LEARNABLE_POOL, STARTER_IDS_FOR_SPECIES, LEGACY_MOVE_IDS, get
 import { makeRng, deriveSeed } from "./rng.js";
 
 const STAT_CAP = 999;
-const LIFESPAN_WEEKS = 50;
+export const TRAINING_LIMIT = 20;
 const START_MONEY = 100;
 
 export const SCENES = {
@@ -18,8 +18,8 @@ export const SCENES = {
   HOME: "home",
   STATUS: "status",
   DEX: "dex",
+  COLLECTION: "collection",
   RESULT: "result",
-  RETIRE: "retire",
 };
 
 export function initialGame() {
@@ -29,8 +29,8 @@ export function initialGame() {
     money: START_MONEY,
     week: 1,
     log: [],
-    monster: null,
-    hallOfFame: [],
+    monsters: [],
+    activeMonsterId: null,
     lastBattle: null,
     lastTraining: null,
     activeBattle: null,
@@ -49,18 +49,42 @@ export function normalizeGame(raw) {
   if (!raw || typeof raw !== "object") return base;
   const g = { ...base, ...raw };
   if (!Object.values(SCENES).includes(g.scene)) g.scene = SCENES.TITLE;
+  if (g.scene === "retire") g.scene = SCENES.COLLECTION;
   if (!Array.isArray(g.log)) g.log = [];
-  if (!Array.isArray(g.hallOfFame)) g.hallOfFame = [];
-  if (!g.dex || typeof g.dex !== "object") g.dex = { summoned: [], encountered: [] };
-  if (!Array.isArray(g.dex.summoned)) g.dex.summoned = [];
-  if (!Array.isArray(g.dex.encountered)) g.dex.encountered = [];
   if (!Number.isFinite(g.money)) g.money = base.money;
   if (!Number.isFinite(g.week) || g.week < 1) g.week = 1;
-  if (g.monster && typeof g.monster !== "object") g.monster = null;
-  if (g.monster) {
-    if (!g.monster.stats || typeof g.monster.stats !== "object") g.monster = null;
-    else normalizeMonster(g.monster);
+  normalizeDex(g);
+
+  const migrated = [];
+  if (Array.isArray(raw.monsters)) migrated.push(...raw.monsters);
+  if (raw.monster && typeof raw.monster === "object" && raw.monster.stats) migrated.push(raw.monster);
+  if (Array.isArray(raw.hallOfFame)) {
+    for (const entry of raw.hallOfFame) {
+      if (!entry || typeof entry !== "object" || !entry.stats) continue;
+      migrated.push({
+        ...entry,
+        age: Number.isFinite(entry.finalWeek) ? entry.finalWeek : 0,
+        fatigue: 0,
+        trainingsUsed: TRAINING_LIMIT,
+        seed: entry.seed || Date.now(),
+      });
+    }
   }
+
+  g.monsters = [];
+  for (const source of migrated) {
+    const m = { ...source };
+    delete m.retired;
+    normalizeMonster(m);
+    if (!g.monsters.some(existing => existing.id === m.id)) g.monsters.push(m);
+    markDex(g, "summoned", m.species);
+  }
+
+  g.activeMonsterId = g.monsters.some(m => m.id === raw.activeMonsterId)
+    ? raw.activeMonsterId
+    : (g.monsters[0]?.id || null);
+  delete g.monster;
+  delete g.hallOfFame;
   if (g.scene !== SCENES.BATTLE && g.activeBattle && g.activeBattle.done) g.activeBattle = null;
   return g;
 }
@@ -86,12 +110,26 @@ function addLog(game, line, kind = "info") {
   if (game.log.length > 40) game.log.length = 40;
 }
 
-function markDex(game, bucket, speciesId) {
-  if (!speciesId) return;
+function normalizeDex(game) {
   if (!game.dex || typeof game.dex !== "object") game.dex = { summoned: [], encountered: [] };
   if (!Array.isArray(game.dex.summoned)) game.dex.summoned = [];
   if (!Array.isArray(game.dex.encountered)) game.dex.encountered = [];
+}
+
+function markDex(game, bucket, speciesId) {
+  if (!speciesId) return;
+  normalizeDex(game);
   if (!game.dex[bucket].includes(speciesId)) game.dex[bucket].push(speciesId);
+}
+
+function makeMonsterId(monster) {
+  const seed = monster.seed ?? Math.floor(Math.random() * 0xffffffff);
+  return `seed_${seed}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+}
+
+export function getActiveMonster(game) {
+  if (!game || !Array.isArray(game.monsters)) return null;
+  return game.monsters.find(m => m.id === game.activeMonsterId) || null;
 }
 
 export function setScene(game, scene) {
@@ -99,52 +137,43 @@ export function setScene(game, scene) {
 }
 
 export function adoptMonster(game, monster) {
-  const clean = { ...monster };
+  if (!Array.isArray(game.monsters)) game.monsters = [];
+  const clean = { ...monster, id: monster.id || makeMonsterId(monster) };
   normalizeMonster(clean);
-  game.monster = {
+  game.monsters.push({
     ...clean,
-    age: 0,
-    fatigue: 0,
-    wins: 0,
-    losses: 0,
-    retired: false,
-  };
+    age: Number.isFinite(clean.age) ? clean.age : 0,
+    fatigue: Number.isFinite(clean.fatigue) ? clean.fatigue : 0,
+    trainingsUsed: Number.isFinite(clean.trainingsUsed) ? clean.trainingsUsed : 0,
+    wins: Number.isFinite(clean.wins) ? clean.wins : 0,
+    losses: Number.isFinite(clean.losses) ? clean.losses : 0,
+  });
+  game.activeMonsterId = clean.id;
   markDex(game, "summoned", clean.species);
   addLog(game, `${clean.name} を仲間にした!`, "good");
 }
 
-export function advanceWeek(game) {
-  const m = game.monster;
-  if (!m || m.retired) return { retired: false };
-  m.age += 1;
-  m.fatigue = Math.max(0, m.fatigue - 5);
-  if (m.age >= LIFESPAN_WEEKS) {
-    m.retired = true;
-    addLog(game, `${m.name} は引退して殿堂入りを待っている`, "info");
-    return { retired: true };
-  }
-  return { retired: false };
+export function switchActiveMonster(game, id) {
+  if (!Array.isArray(game.monsters) || !game.monsters.some(m => m.id === id)) return false;
+  game.activeMonsterId = id;
+  return true;
 }
 
-export function retireToHall(game) {
-  const m = game.monster;
-  if (!m) return;
-  normalizeMonster(m);
-  game.hallOfFame.unshift({
-    name: m.name,
-    species: m.species,
-    variant: m.variant,
-    stats: { ...m.stats },
-    knownMoves: [...m.knownMoves],
-    equipped: [...m.equipped],
-    spMax: m.spMax,
-    wins: m.wins,
-    losses: m.losses,
-    finalWeek: game.week,
-    retiredAt: new Date().toISOString(),
-  });
-  if (game.hallOfFame.length > 20) game.hallOfFame.length = 20;
-  game.monster = null;
+export function releaseMonster(game, id) {
+  if (!Array.isArray(game.monsters)) return false;
+  const before = game.monsters.length;
+  game.monsters = game.monsters.filter(m => m.id !== id);
+  if (game.monsters.length === before) return false;
+  if (game.activeMonsterId === id) game.activeMonsterId = game.monsters[0]?.id || null;
+  return true;
+}
+
+export function advanceWeek(game) {
+  const m = getActiveMonster(game);
+  if (!m) return { advanced: false };
+  m.age += 1;
+  m.fatigue = Math.max(0, m.fatigue - 8);
+  return { advanced: true };
 }
 
 export function addMoney(game, amount, reason) {
@@ -154,7 +183,7 @@ export function addMoney(game, amount, reason) {
 
 export function logBattleResult(game, result) {
   game.lastBattle = result;
-  const m = game.monster;
+  const m = getActiveMonster(game);
   if (!m) return;
   if (result.opponentSpecies) markDex(game, "encountered", result.opponentSpecies);
   if (result.win) m.wins += 1; else m.losses += 1;
@@ -163,11 +192,12 @@ export function logBattleResult(game, result) {
 }
 
 export function applyTrainingResult(game, result) {
-  const m = game.monster;
-  if (!m || m.retired) return;
+  const m = getActiveMonster(game);
+  if (!m || m.trainingsUsed >= TRAINING_LIMIT) return;
   for (const k of Object.keys(result.deltas)) {
     m.stats[k] = clampStat((m.stats[k] || 0) + result.deltas[k]);
   }
+  m.trainingsUsed = Math.min(TRAINING_LIMIT, (m.trainingsUsed || 0) + 1);
   m.fatigue = Math.max(0, Math.min(100, m.fatigue + result.fatigueAdd));
   m.spMax = computeSpMax(m);
   addLog(game, result.message, "info");
@@ -176,8 +206,8 @@ export function applyTrainingResult(game, result) {
 }
 
 export function addFatigue(game, amount) {
-  const m = game.monster;
-  if (!m || m.retired) return;
+  const m = getActiveMonster(game);
+  if (!m) return;
   m.fatigue = Math.max(0, Math.min(100, m.fatigue + amount));
 }
 
@@ -191,8 +221,8 @@ export function computeSpMax(monster) {
 }
 
 export function equipMove(game, slotIndex, moveId) {
-  const m = game.monster;
-  if (!m || m.retired) return false;
+  const m = getActiveMonster(game);
+  if (!m) return false;
   normalizeMonster(m);
   if (!m.knownMoves.includes(moveId) || slotIndex < 0 || slotIndex >= 3) return false;
   m.equipped[slotIndex] = moveId;
@@ -220,8 +250,15 @@ export function normalizeMonster(monster) {
   while (monster.equipped.length < 3 && monster.knownMoves.length > 0) {
     monster.equipped.push(monster.knownMoves[monster.equipped.length % monster.knownMoves.length]);
   }
+  monster.id = monster.id || makeMonsterId(monster);
+  monster.age = Number.isFinite(monster.age) ? monster.age : 0;
+  monster.fatigue = Number.isFinite(monster.fatigue) ? monster.fatigue : 0;
+  monster.trainingsUsed = Number.isFinite(monster.trainingsUsed) ? Math.min(TRAINING_LIMIT, monster.trainingsUsed) : 0;
+  monster.wins = Number.isFinite(monster.wins) ? monster.wins : 0;
+  monster.losses = Number.isFinite(monster.losses) ? monster.losses : 0;
   monster.spMax = computeSpMax(monster);
   monster.move = monster.equipped[0];
+  delete monster.retired;
 }
 
 function toMoveId(value) {
@@ -231,8 +268,8 @@ function toMoveId(value) {
 }
 
 function rollLearnMove(game, chance, tag) {
-  const m = game.monster;
-  if (!m || m.retired) return null;
+  const m = getActiveMonster(game);
+  if (!m) return null;
   normalizeMonster(m);
   const unknown = LEARNABLE_POOL.filter(id => !m.knownMoves.includes(id));
   if (unknown.length === 0) return null;
@@ -244,4 +281,7 @@ function rollLearnMove(game, chance, tag) {
   return learned;
 }
 
-export const constants = { STAT_CAP, LIFESPAN_WEEKS, START_MONEY };
+export const constants = { STAT_CAP, TRAINING_LIMIT, START_MONEY };
+
+
+

@@ -1,6 +1,6 @@
 import { drawMonster, drawPlayer } from "./sprites.js";
 import { getSpecies } from "../game/species.js";
-import { SCENES } from "../game/state.js";
+import { SCENES, getActiveMonster } from "../game/state.js";
 
 const INTERNAL_W = 384;
 const INTERNAL_H = 216;
@@ -84,8 +84,8 @@ export function render(ctx, game, view) {
     case SCENES.HOME: return renderRoom(ctx, game, "ホーム", "#2a2a3a", "ステータス確認と休養ができる");
     case SCENES.STATUS: return renderRoom(ctx, game, "ステータス", "#233044", "能力と技を確認しよう");
     case SCENES.DEX: return renderRoom(ctx, game, "図鑑", "#233044", "出会ったクリッターを記録する");
+    case SCENES.COLLECTION: return renderRoom(ctx, game, "コレクション", "#233044", "仲間を選んで育てよう");
     case SCENES.RESULT: return renderArena(ctx, game, view, "結果");
-    case SCENES.RETIRE: return renderRetire(ctx, game);
     default: return renderTitle(ctx);
   }
 }
@@ -106,8 +106,9 @@ function renderIsland(ctx, game, view) {
   for (const f of FACILITIES) drawFacility(ctx, f, view?.hoverFacility === f.id);
   const p = view?.player || { x: 180, y: 130 };
   drawPlayer(ctx, p.x, p.y, 1);
+  const m = getActiveMonster(game);
   drawText(ctx, `第${game.week}週  ${game.money}G`, 8, 6, "#ffd95a", 13);
-  drawText(ctx, game.monster ? `${game.monster.name} (${game.monster.age}/50)` : "仲間: なし - 祭壇で召喚しよう", 8, 22, "#eef3fb", 12);
+  drawText(ctx, m ? `${m.name} (経過 ${m.age}週)` : "仲間: なし - 祭壇で召喚しよう", 8, 22, "#eef3fb", 12);
 }
 
 function renderRoom(ctx, game, title, bg, hint) {
@@ -119,12 +120,13 @@ function renderRoom(ctx, game, title, bg, hint) {
   for (let x = 0; x < INTERNAL_W; x += 16) ctx.fillRect(x, 0, 1, INTERNAL_H - 32);
   drawText(ctx, title, INTERNAL_W / 2, 12, "#ffd95a", 18, "center");
   drawText(ctx, hint, INTERNAL_W / 2, 38, "#b8c5d8", 13, "center");
-  if (game.monster) {
-    const sp = getSpecies(game.monster.species);
-    drawMonster(ctx, game.monster.species, sp.palette, INTERNAL_W / 2 - 30, 86, 5);
-    drawText(ctx, game.monster.name, INTERNAL_W / 2, 154, "#eef3fb", 15, "center");
-    drawText(ctx, `${sp.label}・${game.monster.variant}`, INTERNAL_W / 2, 172, "#b8c5d8", 12, "center");
-    drawText(ctx, `疲労 ${game.monster.fatigue}`, INTERNAL_W - 8, 6, "#b8c5d8", 12, "right");
+  const m = getActiveMonster(game);
+  if (m) {
+    const sp = getSpecies(m.species);
+    drawMonster(ctx, m.species, sp.palette, INTERNAL_W / 2 - 30, 86, 5);
+    drawText(ctx, m.name, INTERNAL_W / 2, 154, "#eef3fb", 15, "center");
+    drawText(ctx, `${sp.label}・${m.variant}`, INTERNAL_W / 2, 172, "#b8c5d8", 12, "center");
+    drawText(ctx, `疲労 ${m.fatigue}`, INTERNAL_W - 8, 6, "#b8c5d8", 12, "right");
   }
   drawText(ctx, `第${game.week}週  ${game.money}G`, 8, 6, "#ffd95a", 13);
 }
@@ -141,27 +143,15 @@ function renderArena(ctx, game, view, title) {
     for (let x = 16; x < INTERNAL_W - 16; x += 12) ctx.fillRect(x + (((y / 8) | 0) % 2 ? 6 : 0), y, 4, 5);
   }
   drawText(ctx, title, INTERNAL_W / 2, 10, "#ffd95a", 18, "center");
-  if (game.monster) {
-    const sp = getSpecies(game.monster.species);
-    drawMonster(ctx, game.monster.species, sp.palette, 70, 124, 3);
-    drawText(ctx, game.monster.name, 88, 168, "#eef3fb", 12, "center");
+  const m = getActiveMonster(game);
+  if (m) {
+    const sp = getSpecies(m.species);
+    drawMonster(ctx, m.species, sp.palette, 70, 124, 3);
+    drawText(ctx, m.name, 88, 168, "#eef3fb", 12, "center");
   }
   if (view?.opponentSpecies) {
     const sp = getSpecies(view.opponentSpecies);
     drawMonster(ctx, view.opponentSpecies, sp.palette, INTERNAL_W - 106, 124, 3);
     drawText(ctx, view.opponentName || "相手", INTERNAL_W - 88, 168, "#eef3fb", 12, "center");
-  }
-}
-
-function renderRetire(ctx, game) {
-  ctx.fillStyle = "#1a1a2a";
-  ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-  drawText(ctx, "殿堂", INTERNAL_W / 2, 40, "#ffd95a", 20, "center");
-  const last = game.hallOfFame[0];
-  if (last) {
-    drawText(ctx, last.name, INTERNAL_W / 2, 70, "#eef3fb", 18, "center");
-    drawText(ctx, `戦績: ${last.wins}勝${last.losses}敗`, INTERNAL_W / 2, 96, "#b8c5d8", 14, "center");
-    const sp = getSpecies(last.species);
-    if (sp) drawMonster(ctx, last.species, sp.palette, INTERNAL_W / 2 - 24, 110, 4);
   }
 }

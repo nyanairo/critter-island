@@ -62,7 +62,7 @@ export function startBattleState({ monster, rank, seed }) {
     },
     log: [
       { kind: "info", text: `バトル開始! ${monster.name} vs ${opponent.name}` },
-      { kind: "info", text: `ターン 1: 技を選ぼう` },
+      { kind: "info", text: "ターン 1: 技を選ぼう" },
     ],
   };
 }
@@ -72,7 +72,7 @@ export function resolveTurn(activeBattle, monster, choice) {
   const rng = makeRng((activeBattle.seed ^ hashString("turn:" + activeBattle.turn)) >>> 0);
   const playerMove = choice === "wait" ? null : getMove(choice);
   if (playerMove && playerMove.sp > activeBattle.player.sp) {
-    activeBattle.log.unshift({ kind: "bad", text: `SPが足りなくて「${playerMove.name}」を出せない!` });
+    activeBattle.log.unshift({ kind: "bad", text: `SPが足りなくて「${playerMove.name}」を出せない。` });
     return activeBattle;
   }
 
