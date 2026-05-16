@@ -1,11 +1,12 @@
 // Versioned localStorage save. Day-1 versioning + corruption fallback.
 
 const KEY = "critter_island_save_v1";
-export const CURRENT_VERSION = 1;
+export const SAVE_VERSION = 2;
+export const CURRENT_VERSION = SAVE_VERSION;
 
 // Migrations from older versions land here.
 const migrations = {
-  // 1: (data) => ({ ...data, version: 2, game: { ...data.game } }),
+  1: (data) => ({ ...data, version: 2, game: { ...data.game } }),
 };
 
 export function load() {
